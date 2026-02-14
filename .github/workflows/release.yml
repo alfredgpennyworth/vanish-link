@@ -229,7 +229,9 @@ jobs:
           git commit -m "Update vanish to ${CLEAN_VERSION}"
           git push
 
-  # Publish to npm (OIDC Trusted Publishing — no token needed)
+  # Publish to npm
+  # NOTE: Requires a granular access token with "Publish: bypass 2FA" permission
+  # Create at https://www.npmjs.com/settings/alfredgpennyworth/tokens/granular
   npm-publish:
     runs-on: ubuntu-latest
     permissions:
