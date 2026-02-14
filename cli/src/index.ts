@@ -189,7 +189,7 @@ Usage:
 Options:
   --views <n>        Max views (default: 1)
   --ttl <dur>        Expiry: 30s, 5m, 1h, 7d (default: 1h)
-  --password [pw]    Password-protect (prompts securely if no value given)
+  --password [pw]    Password-protect (prompts if no value; or set VANISH_PASSWORD)
   --file <path>      Read from file
   --raw              URL only (for scripting)
   --json             Full JSON output
@@ -205,13 +205,19 @@ async function main() {
     if (command === 'read') {
       if (!content) { console.error('Usage: vanish read <url>'); process.exit(1); }
       let pw = flags.password;
-      if (pw === 'true' && process.stdin.isTTY) pw = await promptPassword('Password: ');
-      else if (pw === 'true') { console.error('Error: --password requires a value when not in a TTY'); process.exit(1); }
+      if (pw === 'true') {
+        if (process.env.VANISH_PASSWORD) pw = process.env.VANISH_PASSWORD;
+        else if (process.stdin.isTTY) pw = await promptPassword('Password: ');
+        else { console.error('Error: --password requires a value, VANISH_PASSWORD env, or a TTY'); process.exit(1); }
+      }
       let plaintext = await consumeLink(content, pw);
       if (plaintext.startsWith('\x00PW_REQUIRED\x00')) {
-        if (!process.stdin.isTTY) { console.error('Error: This link is password-protected. Use --password <pw>'); process.exit(1); }
+        if (process.env.VANISH_PASSWORD) { pw = process.env.VANISH_PASSWORD; }
+        else if (!process.stdin.isTTY) { console.error('Error: This link is password-protected. Use --password or VANISH_PASSWORD env'); process.exit(1); }
+        else {
         process.stderr.write('\u{1F511} This link is password-protected.\n');
         pw = await promptPassword('Password: ');
+        }
         // We already consumed the link, so decrypt the ciphertext we got back
         const ct = plaintext.slice('\x00PW_REQUIRED\x00'.length);
         const hi = content.indexOf('#'); const key = content.slice(hi + 1);
@@ -244,8 +250,11 @@ async function main() {
     const views = flags.views ? parseInt(flags.views) : 1;
     const ttl = flags.ttl ? parseTTL(flags.ttl) : 3600;
     let password = flags.password;
-    if (password === 'true' && process.stdin.isTTY) password = await promptPassword('Password: ');
-    else if (password === 'true') { console.error('Error: --password requires a value when not in a TTY'); process.exit(1); }
+    if (password === 'true') {
+      if (process.env.VANISH_PASSWORD) password = process.env.VANISH_PASSWORD;
+      else if (process.stdin.isTTY) password = await promptPassword('Password: ');
+      else { console.error('Error: --password requires a value, VANISH_PASSWORD env, or a TTY'); process.exit(1); }
+    }
     const result = await createLink(body.trim(), { views, ttl, password: password || undefined });
 
     if (flags.raw) process.stdout.write(result.url);
