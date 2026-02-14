@@ -172,7 +172,7 @@ jobs:
           echo "macos-x64:    $SHA_MACOS_X64"
 
           # Clone and update tap
-          git clone https://x-access-token:${GH_TOKEN}@github.com/alfredgpennyworth/homebrew-tap.git
+          git clone https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/alfredgpennyworth/homebrew-tap.git
           cd homebrew-tap
 
           cat > Formula/vanish.rb << RUBY
@@ -273,7 +273,7 @@ jobs:
           CLEAN_VERSION="${VERSION#v}"
           echo "SHA: $SHA"
 
-          git clone https://x-access-token:${GH_TOKEN}@github.com/alfredgpennyworth/scoop-bucket.git
+          git clone https://x-access-token:${{ secrets.PUSH_TOKEN }}@github.com/alfredgpennyworth/scoop-bucket.git
           cd scoop-bucket
 
           cat > bucket/vanish.json << EOF
@@ -315,6 +315,6 @@ jobs:
     steps:
       - name: Trigger apt-repo update
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
         run: |
-          gh workflow run update-repo.yml -R alfredgpennyworth/apt-repo -f version="$VERSION"
+          gh workflow run update-repo.yml -R alfredgpennyworth/apt-repo -f version="$VERSION""
