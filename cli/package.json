@@ -1,0 +1,17 @@
+{
+  "name": "vanish-cli",
+  "version": "0.1.0",
+  "description": "Self-destructing links for agents and humans",
+  "bin": { "vanish": "./dist/index.js" },
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.0"
+  }
+}
