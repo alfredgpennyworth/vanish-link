@@ -257,3 +257,63 @@ jobs:
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Update Scoop bucket
+  scoop:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$VERSION" -p "vanish-win-x64.exe" -R alfredgpennyworth/vanish-link
+          SHA=$(sha256sum vanish-win-x64.exe | cut -d' ' -f1)
+          CLEAN_VERSION="${VERSION#v}"
+          echo "SHA: $SHA"
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/alfredgpennyworth/scoop-bucket.git
+          cd scoop-bucket
+
+          cat > bucket/vanish.json << EOF
+          {
+              "version": "${CLEAN_VERSION}",
+              "description": "Zero-knowledge self-destructing links. E2E encrypted with AES-256-GCM.",
+              "homepage": "https://vanish.link",
+              "license": "MIT",
+              "architecture": {
+                  "64bit": {
+                      "url": "https://github.com/alfredgpennyworth/vanish-link/releases/download/v${CLEAN_VERSION}/vanish-win-x64.exe",
+                      "hash": "${SHA}"
+                  }
+              },
+              "bin": [["vanish-win-x64.exe", "vanish"]],
+              "checkver": {
+                  "github": "https://github.com/alfredgpennyworth/vanish-link"
+              },
+              "autoupdate": {
+                  "architecture": {
+                      "64bit": {
+                          "url": "https://github.com/alfredgpennyworth/vanish-link/releases/download/v\$version/vanish-win-x64.exe"
+                      }
+                  }
+              }
+          }
+          EOF
+
+          git config user.name "Alfred"
+          git config user.email "alfredgpennyworth@gmail.com"
+          git add -A
+          git commit -m "Update vanish to ${CLEAN_VERSION}"
+          git push
+
+  # Trigger APT repo update
+  apt:
+    needs: linux-packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger apt-repo update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run update-repo.yml -R alfredgpennyworth/apt-repo -f version="$VERSION"
