@@ -3,7 +3,7 @@
  * AES-256-GCM via Web Crypto API
  * This file is served statically and can be audited against the source repo.
  */
-const VANISH_API = 'https://vanish-api.b4sed.workers.dev';
+const VANISH_API = 'https://api.vanish.link';
 
 async function vanishEncrypt(plaintext) {
 	const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);

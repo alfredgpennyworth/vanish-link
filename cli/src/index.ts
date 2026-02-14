@@ -2,8 +2,8 @@
 
 import { webcrypto } from 'node:crypto';
 
-const API_BASE = process.env.VANISH_API_URL || 'https://vanish-api.b4sed.workers.dev';
-const SITE_BASE = process.env.VANISH_SITE_URL || 'https://vanish-link-8y6.pages.dev';
+const API_BASE = process.env.VANISH_API_URL || 'https://api.vanish.link';
+const SITE_BASE = process.env.VANISH_SITE_URL || 'https://vanish.link';
 const API_KEY = process.env.VANISH_API_KEY || '';
 
 const subtle = (webcrypto as any).subtle as SubtleCrypto;
