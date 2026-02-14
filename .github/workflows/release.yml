@@ -1,0 +1,85 @@
+name: Release CLI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: node22-linux-x64
+            artifact: vanish-linux-x64
+          - os: ubuntu-latest
+            target: node22-linux-arm64
+            artifact: vanish-linux-arm64
+          - os: macos-latest
+            target: node22-macos-arm64
+            artifact: vanish-macos-arm64
+          - os: macos-13
+            target: node22-macos-x64
+            artifact: vanish-macos-x64
+          - os: windows-latest
+            target: node22-win-x64
+            artifact: vanish-win-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: cli
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: cli
+        run: npx tsc
+
+      - name: Bundle with esbuild
+        working-directory: cli
+        run: npx esbuild dist/index.js --bundle --platform=node --target=node22 --outfile=bundle.cjs --format=cjs
+
+      - name: Build binary
+        working-directory: cli
+        run: |
+          npx @yao-pkg/pkg bundle.cjs \
+            --target ${{ matrix.target }} \
+            --output ${{ matrix.artifact }} \
+            --compress GZip
+
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "cli/${{ matrix.artifact }}" --clobber
+
+  npm-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install & build
+        working-directory: cli
+        run: |
+          npm ci
+          npx tsc
+
+      - name: Publish to npm
+        working-directory: cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

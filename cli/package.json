@@ -1,17 +1,42 @@
 {
   "name": "vanish-cli",
   "version": "0.1.0",
-  "description": "Self-destructing links for agents and humans",
-  "bin": { "vanish": "./dist/index.js" },
+  "description": "Zero-knowledge self-destructing links. E2E encrypted with AES-256-GCM.",
+  "bin": {
+    "vanish": "./dist/index.js"
+  },
   "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts"
   },
-  "dependencies": {},
+  "keywords": [
+    "encryption",
+    "e2e",
+    "self-destructing",
+    "secrets",
+    "zero-knowledge",
+    "cli",
+    "vanish"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alfredgpennyworth/vanish-link",
+    "directory": "cli"
+  },
+  "homepage": "https://vanish.link",
+  "engines": {
+    "node": ">=18"
+  },
   "devDependencies": {
-    "typescript": "^5.3.0",
     "@types/node": "^22.0.0",
-    "tsx": "^4.7.0"
+    "esbuild": "^0.27.3",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
   }
 }
