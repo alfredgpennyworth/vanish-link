@@ -1,32 +1,194 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
-	</head>
-	<body>
-		<h1 id="heading"></h1>
-		<p>This page comes from a static asset stored at `public/index.html` as configured in `wrangler.jsonc`.</p>
-		<button id="button" type="button">Fetch a random UUID</button>
-		<output id="random" for="button"></output>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
-				});
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Vanish.link — Zero-knowledge self-destructing links</title>
+	<meta name="description" content="Create end-to-end encrypted, self-destructing links. The server never sees your data.">
+	<style>
+		*{box-sizing:border-box;margin:0;padding:0}
+		body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+		.container{max-width:640px;width:100%;text-align:center}
+		.logo{font-size:4rem;margin-bottom:1rem;filter:drop-shadow(0 0 30px rgba(239,68,68,0.4))}
+		h1{font-size:2.5rem;margin-bottom:0.5rem;letter-spacing:-0.02em}
+		.tagline{color:#888;font-size:1.1rem;margin-bottom:0.5rem}
+		.e2e-badge{display:inline-flex;align-items:center;gap:6px;background:#0f2a1a;border:1px solid #166534;color:#22c55e;padding:4px 14px;border-radius:20px;font-size:0.8rem;margin-bottom:2rem}
+		.create-form{background:#141414;border:1px solid #222;border-radius:16px;padding:1.5rem;text-align:left;margin-bottom:2rem}
+		.create-form textarea{width:100%;background:#0a0a0a;border:1px solid #333;border-radius:8px;color:#fff;padding:0.75rem;font-family:'Monaco','Menlo','Consolas',monospace;font-size:0.9rem;resize:vertical;min-height:80px;margin-bottom:1rem}
+		.create-form textarea:focus{outline:none;border-color:#ef4444}
+		.options{display:flex;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap}
+		.options label{color:#888;font-size:0.8rem;display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
+		.options select,.options input{background:#0a0a0a;border:1px solid #333;border-radius:6px;color:#fff;padding:0.5rem;font-size:0.85rem}
+		.btn{background:#ef4444;color:white;border:none;width:100%;padding:0.75rem;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600;transition:background 0.2s}
+		.btn:hover{background:#dc2626}
+		.btn:disabled{opacity:0.5;cursor:not-allowed}
+		.result{background:#141414;border:1px solid #222;border-radius:12px;padding:1.25rem;margin-top:1rem;display:none;text-align:left}
+		.result-url{background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:0.75rem;font-family:monospace;font-size:0.85rem;word-break:break-all;color:#ef4444;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+		.result-url:hover{border-color:#ef4444}
+		.result-meta{color:#666;font-size:0.8rem;margin-top:0.75rem}
+		.copied{color:#22c55e;font-size:0.8rem;white-space:nowrap}
+		.how-it-works{border-top:1px solid #1a1a1a;padding-top:2rem;margin-top:1rem}
+		.how-it-works h2{font-size:1rem;color:#666;margin-bottom:1rem}
+		.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;text-align:center;margin-bottom:2rem}
+		.step{background:#141414;border:1px solid #222;border-radius:10px;padding:1rem}
+		.step .icon{font-size:1.5rem;margin-bottom:0.5rem}
+		.step .title{font-size:0.85rem;font-weight:600;margin-bottom:0.25rem}
+		.step .desc{font-size:0.75rem;color:#666}
+		.code-block{background:#141414;border:1px solid #222;border-radius:10px;padding:1.25rem;text-align:left;overflow-x:auto}
+		.code-block code{color:#10b981;font-family:'Monaco','Menlo',monospace;font-size:0.85rem;line-height:1.8}
+		.comment{color:#555}
+		footer{color:#333;font-size:0.75rem;margin-top:2rem}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="logo">🔥</div>
+		<h1>vanish.link</h1>
+		<p class="tagline">Self-destructing links for agents and humans.</p>
+		<div class="e2e-badge">🔒 End-to-end encrypted — server never sees your data</div>
 
-			const button = document.getElementById("button");
-			button.addEventListener("click", () => {
-				fetch('/random')
-					.then((resp) => resp.text())
-					.then((text) => {
-						const random = document.getElementById('random');
-						random.textContent = text;
-					});
+		<div class="create-form">
+			<textarea id="content" placeholder="Paste your secret, API key, password, or sensitive data..."></textarea>
+			<div class="options">
+				<label>Views
+					<select id="views">
+						<option value="1">1 view</option>
+						<option value="3">3 views</option>
+						<option value="5">5 views</option>
+						<option value="10">10 views</option>
+					</select>
+				</label>
+				<label>Expires
+					<select id="ttl">
+						<option value="300">5 minutes</option>
+						<option value="1800">30 minutes</option>
+						<option value="3600" selected>1 hour</option>
+						<option value="86400">24 hours</option>
+						<option value="604800">7 days</option>
+					</select>
+				</label>
+			</div>
+			<button class="btn" id="create-btn" onclick="createLink()">Create Vanish Link</button>
+			<div class="result" id="result">
+				<div class="result-url" id="url" onclick="copyUrl()">
+					<span id="url-text"></span>
+					<span class="copied" id="copied" style="display:none">Copied!</span>
+				</div>
+				<p class="result-meta" id="meta"></p>
+			</div>
+		</div>
+
+		<div class="how-it-works">
+			<h2>How it works</h2>
+			<div class="steps">
+				<div class="step">
+					<div class="icon">🔐</div>
+					<div class="title">Encrypt locally</div>
+					<div class="desc">AES-256-GCM in your browser. Key never leaves your device.</div>
+				</div>
+				<div class="step">
+					<div class="icon">📡</div>
+					<div class="title">Store ciphertext</div>
+					<div class="desc">Server only sees encrypted gibberish. Zero knowledge.</div>
+				</div>
+				<div class="step">
+					<div class="icon">🔗</div>
+					<div class="title">Key in URL fragment</div>
+					<div class="desc">Decryption key is in the #hash — never sent to server.</div>
+				</div>
+				<div class="step">
+					<div class="icon">🔥</div>
+					<div class="title">View & burn</div>
+					<div class="desc">Recipient decrypts locally. Link self-destructs.</div>
+				</div>
+			</div>
+
+			<h2>CLI & API</h2>
+			<div class="code-block">
+				<code>
+					<span class="comment"># Create an E2E encrypted link</span><br>
+					vanish "sk-abc123"<br><br>
+					<span class="comment"># From a file, expires in 5 minutes</span><br>
+					vanish --file .env --ttl 5m<br><br>
+					<span class="comment"># Agent API</span><br>
+					curl -X POST vanish.link/api/v1/links \<br>
+					&nbsp;&nbsp;-d '{"ciphertext":"...","views":1}'
+				</code>
+			</div>
+		</div>
+
+		<footer>AES-256-GCM · Zero knowledge · End-to-end encrypted · Open source</footer>
+	</div>
+
+	<script>
+	async function encryptContent(plaintext) {
+		// Generate a random 256-bit key
+		const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+		const iv = crypto.getRandomValues(new Uint8Array(12));
+		const encoded = new TextEncoder().encode(plaintext);
+
+		const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+
+		// Combine IV + ciphertext
+		const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
+		combined.set(iv);
+		combined.set(new Uint8Array(ciphertext), iv.length);
+
+		// Export key as base64 for URL fragment
+		const rawKey = await crypto.subtle.exportKey('raw', key);
+		const keyB64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)));
+		const ciphertextB64 = btoa(String.fromCharCode(...combined));
+
+		return { ciphertext: ciphertextB64, key: keyB64 };
+	}
+
+	async function createLink() {
+		const content = document.getElementById('content').value.trim();
+		if (!content) return;
+
+		const views = parseInt(document.getElementById('views').value);
+		const ttl = parseInt(document.getElementById('ttl').value);
+		const btn = document.getElementById('create-btn');
+
+		btn.disabled = true;
+		btn.textContent = 'Encrypting...';
+
+		try {
+			// Encrypt client-side
+			const { ciphertext, key } = await encryptContent(content);
+
+			btn.textContent = 'Uploading...';
+
+			const res = await fetch('/api/v1/links', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ciphertext, views, ttl_seconds: ttl })
 			});
-		</script>
-	</body>
+			const data = await res.json();
+
+			// Append key as URL fragment (never sent to server)
+			const fullUrl = data.url + '#' + key;
+			document.getElementById('url-text').textContent = fullUrl;
+
+			const units = ttl < 60 ? ttl+'s' : ttl < 3600 ? Math.floor(ttl/60)+'m' : ttl < 86400 ? Math.floor(ttl/3600)+'h' : Math.floor(ttl/86400)+'d';
+			document.getElementById('meta').textContent =
+				`🔒 E2E encrypted · ${views} view${views>1?'s':''} · expires in ${units}`;
+			document.getElementById('result').style.display = 'block';
+			document.getElementById('content').value = '';
+		} catch(e) {
+			alert('Error: ' + e.message);
+		}
+		btn.disabled = false;
+		btn.textContent = 'Create Vanish Link';
+	}
+
+	function copyUrl() {
+		const url = document.getElementById('url-text').textContent;
+		navigator.clipboard.writeText(url);
+		const el = document.getElementById('copied');
+		el.style.display = 'inline';
+		setTimeout(() => el.style.display = 'none', 2000);
+	}
+	</script>
+</body>
 </html>
