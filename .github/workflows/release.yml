@@ -317,4 +317,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
         run: |
-          gh workflow run update-repo.yml -R alfredgpennyworth/apt-repo -f version="$VERSION""
+          gh workflow run update-repo.yml -R alfredgpennyworth/apt-repo -f version="$VERSION"
