@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Vanish.link — Zero-knowledge self-destructing links</title>
+	<meta name="description" content="Create end-to-end encrypted, self-destructing links. The server never sees your data.">
+	<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+	<div class="container">
+		<div class="logo">🔥</div>
+		<h1>vanish.link</h1>
+		<p class="tagline">Self-destructing links for agents and humans.</p>
+		<div class="e2e-badge">🔒 End-to-end encrypted — server never sees your data</div>
+
+		<div class="create-form">
+			<textarea id="content" placeholder="Paste your secret, API key, password, or sensitive data..."></textarea>
+			<div class="options">
+				<label>Views
+					<select id="views">
+						<option value="1">1 view</option>
+						<option value="3">3 views</option>
+						<option value="5">5 views</option>
+						<option value="10">10 views</option>
+					</select>
+				</label>
+				<label>Expires
+					<select id="ttl">
+						<option value="300">5 minutes</option>
+						<option value="1800">30 minutes</option>
+						<option value="3600" selected>1 hour</option>
+						<option value="86400">24 hours</option>
+						<option value="604800">7 days</option>
+					</select>
+				</label>
+			</div>
+			<button class="btn" id="create-btn">Create Vanish Link</button>
+			<div class="result" id="result">
+				<div class="result-url" id="url-box">
+					<span id="url-text"></span>
+					<span class="copied" id="copied" style="display:none">Copied!</span>
+				</div>
+				<p class="result-meta" id="meta"></p>
+			</div>
+		</div>
+
+		<div class="how-it-works">
+			<h2>How it works</h2>
+			<div class="steps">
+				<div class="step"><div class="icon">🔐</div><div class="title">Encrypt locally</div><div class="desc">AES-256-GCM in your browser. Key never leaves your device.</div></div>
+				<div class="step"><div class="icon">📡</div><div class="title">Store ciphertext</div><div class="desc">API only sees encrypted gibberish. Zero knowledge.</div></div>
+				<div class="step"><div class="icon">🔗</div><div class="title">Key in URL fragment</div><div class="desc">Decryption key is in the #hash — never sent to any server.</div></div>
+				<div class="step"><div class="icon">🔥</div><div class="title">View & burn</div><div class="desc">Recipient decrypts locally. Link self-destructs.</div></div>
+			</div>
+			<div class="security-note">
+				<h3>🛡️ Split-origin architecture</h3>
+				<p>This static site and the API run on <strong>separate origins</strong>. The API stores encrypted data but never serves HTML or JavaScript. Even if the API is compromised, it cannot inject code to steal your decryption keys. <a href="https://github.com/alfredgpennyworth/vanish-link" target="_blank">Audit the source →</a></p>
+			</div>
+
+			<h2>CLI & API</h2>
+			<div class="code-block">
+				<code>
+					<span class="comment"># Create an E2E encrypted link</span><br>
+					vanish "sk-abc123"<br><br>
+					<span class="comment"># Consume & decrypt</span><br>
+					vanish read "https://vanish.link/abc#key"<br><br>
+					<span class="comment"># Agent API</span><br>
+					curl -X POST api.vanish.link/api/v1/links \<br>
+					&nbsp;&nbsp;-d '{"ciphertext":"...","views":1}'
+				</code>
+			</div>
+		</div>
+
+		<footer>AES-256-GCM · Zero knowledge · Split-origin · <a href="https://github.com/alfredgpennyworth/vanish-link">Open source</a></footer>
+	</div>
+	<script src="/crypto.js"></script>
+	<script src="/app.js"></script>
+</body>
+</html>

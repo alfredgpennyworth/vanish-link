@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Vanish.link</title>
+	<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+	<div class="container">
+		<div class="logo">🔥</div>
+		<h1>vanish.link</h1>
+
+		<div id="decrypting">
+			<div class="e2e-badge">🔒 End-to-end encrypted</div>
+			<p class="warning">Decrypting...</p>
+		</div>
+
+		<div id="content-wrap" style="display:none">
+			<div class="e2e-badge">🔒 Decrypted locally in your browser</div>
+			<p class="warning" id="views-info"></p>
+			<div class="content"><pre id="plaintext"></pre></div>
+		</div>
+
+		<div id="burned-wrap" style="display:none">
+			<p class="burned">This link has already vanished.</p>
+			<p class="stats">It either expired, was viewed, or never existed.</p>
+		</div>
+
+		<div id="error-wrap" style="display:none">
+			<div class="error" id="error-msg"></div>
+		</div>
+
+		<footer style="margin-top:2rem"><a href="/">Create your own →</a></footer>
+	</div>
+	<script src="/crypto.js"></script>
+	<script src="/viewer.js"></script>
+</body>
+</html>
