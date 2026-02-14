@@ -68,6 +68,7 @@ jobs:
         run: npx @yao-pkg/pkg bundle.cjs --target ${{ matrix.target }} --output ${{ matrix.artifact }} --compress GZip
 
       - name: Upload release asset
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$VERSION" "cli/${{ matrix.artifact }}" --clobber
@@ -253,6 +254,7 @@ jobs:
 
       - name: Publish to npm
         working-directory: cli
+        continue-on-error: true
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
