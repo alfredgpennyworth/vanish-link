@@ -101,7 +101,7 @@ async function consumeLink(urlOrId: string, password?: string): Promise<string> 
   if (!res.ok) { const e = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as any; throw new Error(e.error); }
   const data = await res.json() as any;
 
-  if (data.password_protected && !password) throw new Error('This link is password-protected. Use --password <pw>');
+  if (data.password_protected && !password) return '\x00PW_REQUIRED\x00' + data.ciphertext;
   return key ? await e2eDecrypt(data.ciphertext, key, data.password_protected ? password : undefined) : data.ciphertext;
 }
 
@@ -114,6 +114,32 @@ async function getStatus(id: string) {
 async function deleteLink(id: string) {
   const res = await fetch(`${API_BASE}/api/v1/links/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+async function promptPassword(prompt = 'Password: '): Promise<string> {
+  const { createInterface } = await import('readline');
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    // Disable echo
+    if (process.stdin.isTTY) process.stdin.setRawMode!(true);
+    process.stderr.write(prompt);
+    let pw = '';
+    process.stdin.on('data', (ch: Buffer) => {
+      const c = ch.toString();
+      if (c === '\n' || c === '\r' || c === '\x03') {
+        if (process.stdin.isTTY) process.stdin.setRawMode!(false);
+        process.stderr.write('\n');
+        rl.close();
+        if (c === '\x03') process.exit(1);
+        resolve(pw);
+      } else if (c === '\x7f' || c === '\x08') {
+        if (pw.length > 0) { pw = pw.slice(0, -1); process.stderr.write('\b \b'); }
+      } else {
+        pw += c;
+        process.stderr.write('*');
+      }
+    });
+  });
 }
 
 async function readStdin(): Promise<string> {
@@ -151,18 +177,19 @@ const HELP = `
 
 Usage:
   vanish "secret"                         Create a 1-view E2E link
-  vanish "secret" --password mypass       Password-protected link
+  vanish "secret" --password              Password-protected (prompts securely)
+  vanish "secret" --password mypass       Password inline (less secure)
   vanish --file .env --ttl 5m             From file, 5 min TTL
   echo "secret" | vanish                  From stdin
   vanish read <url>                       Consume & decrypt
-  vanish read <url> --password mypass     Decrypt password-protected link
+  vanish read <url> --password            Decrypt (prompts for password)
   vanish status <id>                      Check status
   vanish burn <id>                        Delete immediately
 
 Options:
   --views <n>        Max views (default: 1)
   --ttl <dur>        Expiry: 30s, 5m, 1h, 7d (default: 1h)
-  --password <pw>    Password-protect (PBKDF2 + AES-256-GCM)
+  --password [pw]    Password-protect (prompts securely if no value given)
   --file <path>      Read from file
   --raw              URL only (for scripting)
   --json             Full JSON output
@@ -177,7 +204,19 @@ async function main() {
   try {
     if (command === 'read') {
       if (!content) { console.error('Usage: vanish read <url>'); process.exit(1); }
-      const plaintext = await consumeLink(content, flags.password);
+      let pw = flags.password;
+      if (pw === 'true' && process.stdin.isTTY) pw = await promptPassword('Password: ');
+      else if (pw === 'true') { console.error('Error: --password requires a value when not in a TTY'); process.exit(1); }
+      let plaintext = await consumeLink(content, pw);
+      if (plaintext.startsWith('\x00PW_REQUIRED\x00')) {
+        if (!process.stdin.isTTY) { console.error('Error: This link is password-protected. Use --password <pw>'); process.exit(1); }
+        process.stderr.write('\u{1F511} This link is password-protected.\n');
+        pw = await promptPassword('Password: ');
+        // We already consumed the link, so decrypt the ciphertext we got back
+        const ct = plaintext.slice('\x00PW_REQUIRED\x00'.length);
+        const hi = content.indexOf('#'); const key = content.slice(hi + 1);
+        plaintext = await e2eDecrypt(ct, key, pw);
+      }
       process.stdout.write(plaintext);
       if (process.stdout.isTTY) process.stdout.write('\n');
       return;
@@ -204,14 +243,17 @@ async function main() {
 
     const views = flags.views ? parseInt(flags.views) : 1;
     const ttl = flags.ttl ? parseTTL(flags.ttl) : 3600;
-    const result = await createLink(body.trim(), { views, ttl, password: flags.password });
+    let password = flags.password;
+    if (password === 'true' && process.stdin.isTTY) password = await promptPassword('Password: ');
+    else if (password === 'true') { console.error('Error: --password requires a value when not in a TTY'); process.exit(1); }
+    const result = await createLink(body.trim(), { views, ttl, password: password || undefined });
 
     if (flags.raw) process.stdout.write(result.url);
     else if (flags.json) console.log(JSON.stringify({ ...result, e2e: true }, null, 2));
     else {
       console.log(`\u{1F525} ${result.url}`);
       let meta = `   \u{1F512} E2E encrypted \u00B7 ${views} view${views>1?'s':''} \u00B7 expires in ${fmtDur(ttl)}`;
-      if (flags.password) meta += ' \u00B7 \u{1F511} password protected';
+      if (password) meta += ' \u00B7 \u{1F511} password protected';
       console.log(meta);
     }
   } catch (err: any) { console.error(`Error: ${err.message}`); process.exit(1); }
