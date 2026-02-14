@@ -1,6 +1,6 @@
 {
   "name": "vanish-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Zero-knowledge self-destructing links. E2E encrypted with AES-256-GCM.",
   "bin": {
     "vanish": "./dist/index.js"

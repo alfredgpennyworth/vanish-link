@@ -30,7 +30,7 @@ jobs:
             artifact: vanish-macos-arm64
             goos: darwin
             goarch: arm64
-          - os: macos-13
+          - os: macos-latest
             target: node22-macos-x64
             artifact: vanish-macos-x64
             goos: darwin
@@ -64,11 +64,8 @@ jobs:
 
       - name: Build binary
         working-directory: cli
-        run: |
-          npx @yao-pkg/pkg bundle.cjs \
-            --target ${{ matrix.target }} \
-            --output ${{ matrix.artifact }} \
-            --compress GZip
+        shell: bash
+        run: npx @yao-pkg/pkg bundle.cjs --target ${{ matrix.target }} --output ${{ matrix.artifact }} --compress GZip
 
       - name: Upload release asset
         env:
@@ -254,7 +251,7 @@ jobs:
 
       - name: Publish to npm
         working-directory: cli
-        run: npm publish --access public --provenance
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
