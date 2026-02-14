@@ -16,6 +16,16 @@
 			<p class="warning">Decrypting...</p>
 		</div>
 
+		<div id="password-wrap" style="display:none">
+			<div class="e2e-badge">🔑 Password protected</div>
+			<p class="warning">This link requires a password to decrypt.</p>
+			<div class="pw-form">
+				<input type="password" id="pw-input" placeholder="Enter password" autofocus>
+				<button class="btn" id="pw-submit">Decrypt</button>
+				<div class="error" id="pw-error" style="display:none"></div>
+			</div>
+		</div>
+
 		<div id="content-wrap" style="display:none">
 			<div class="e2e-badge">🔒 Decrypted locally in your browser</div>
 			<p class="warning" id="views-info"></p>

@@ -7,32 +7,37 @@ document.getElementById('create-btn').addEventListener('click', async () => {
 
 	const views = parseInt(document.getElementById('views').value);
 	const ttl = parseInt(document.getElementById('ttl').value);
+	const password = document.getElementById('password').value;
 	const btn = document.getElementById('create-btn');
 
 	btn.disabled = true;
 	btn.textContent = 'Encrypting...';
 
 	try {
-		const { ciphertext, key } = await vanishEncrypt(content);
+		const { ciphertext, key } = await vanishEncrypt(content, password || null);
 
 		btn.textContent = 'Uploading...';
 
 		const res = await fetch(VANISH_API + '/api/v1/links', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ ciphertext, views, ttl_seconds: ttl }),
+			body: JSON.stringify({
+				ciphertext, views, ttl_seconds: ttl,
+				password_protected: !!password,
+			}),
 		});
 		const data = await res.json();
 
-		// Build the URL: static site origin + link ID + key in fragment
 		const fullUrl = window.location.origin + '/v/' + data.id + '#' + key;
 		document.getElementById('url-text').textContent = fullUrl;
 
 		const units = ttl < 60 ? ttl+'s' : ttl < 3600 ? Math.floor(ttl/60)+'m' : ttl < 86400 ? Math.floor(ttl/3600)+'h' : Math.floor(ttl/86400)+'d';
-		document.getElementById('meta').textContent =
-			'🔒 E2E encrypted · ' + views + ' view' + (views > 1 ? 's' : '') + ' · expires in ' + units;
+		let meta = '\u{1F512} E2E encrypted \u00B7 ' + views + ' view' + (views > 1 ? 's' : '') + ' \u00B7 expires in ' + units;
+		if (password) meta += ' \u00B7 \u{1F511} password protected';
+		document.getElementById('meta').textContent = meta;
 		document.getElementById('result').style.display = 'block';
 		document.getElementById('content').value = '';
+		document.getElementById('password').value = '';
 	} catch (e) {
 		alert('Error: ' + e.message);
 	}
