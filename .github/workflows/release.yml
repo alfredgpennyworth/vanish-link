@@ -7,6 +7,9 @@ on:
 permissions:
   contents: write
 
+env:
+  VERSION: ${{ github.event.release.tag_name }}
+
 jobs:
   build:
     strategy:
@@ -15,18 +18,28 @@ jobs:
           - os: ubuntu-latest
             target: node22-linux-x64
             artifact: vanish-linux-x64
+            goos: linux
+            goarch: amd64
           - os: ubuntu-latest
             target: node22-linux-arm64
             artifact: vanish-linux-arm64
+            goos: linux
+            goarch: arm64
           - os: macos-latest
             target: node22-macos-arm64
             artifact: vanish-macos-arm64
+            goos: darwin
+            goarch: arm64
           - os: macos-13
             target: node22-macos-x64
             artifact: vanish-macos-x64
+            goos: darwin
+            goarch: amd64
           - os: windows-latest
             target: node22-win-x64
             artifact: vanish-win-x64.exe
+            goos: windows
+            goarch: amd64
 
     runs-on: ${{ matrix.os }}
 
@@ -60,8 +73,166 @@ jobs:
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "cli/${{ matrix.artifact }}" --clobber
+        run: gh release upload "$VERSION" "cli/${{ matrix.artifact }}" --clobber
 
+      - name: Upload artifact for packaging
+        if: matrix.goos == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: cli/${{ matrix.artifact }}
+
+  # Build .deb and .rpm packages
+  linux-packages:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            artifact: vanish-linux-x64
+          - arch: arm64
+            artifact: vanish-linux-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+
+      - name: Prepare binary
+        run: |
+          chmod +x ${{ matrix.artifact }}
+          mkdir -p pkg-root/usr/bin
+          cp ${{ matrix.artifact }} pkg-root/usr/bin/vanish
+
+      - name: Install nfpm
+        run: |
+          curl -sfL https://github.com/goreleaser/nfpm/releases/download/v2.41.1/nfpm_2.41.1_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin nfpm
+
+      - name: Create nfpm config
+        run: |
+          CLEAN_VERSION="${VERSION#v}"
+          cat > nfpm.yaml << EOF
+          name: vanish
+          arch: "${{ matrix.arch }}"
+          version: "${CLEAN_VERSION}"
+          maintainer: "Alfred <alfredgpennyworth@gmail.com>"
+          description: "Zero-knowledge self-destructing links. E2E encrypted with AES-256-GCM."
+          homepage: "https://vanish.link"
+          license: "MIT"
+          contents:
+            - src: pkg-root/usr/bin/vanish
+              dst: /usr/bin/vanish
+          EOF
+
+      - name: Build .deb
+        run: |
+          nfpm pkg --packager deb --target vanish_${{ matrix.arch }}.deb
+          echo "Built vanish_${{ matrix.arch }}.deb"
+
+      - name: Build .rpm
+        run: |
+          nfpm pkg --packager rpm --target vanish_${{ matrix.arch }}.rpm
+          echo "Built vanish_${{ matrix.arch }}.rpm"
+
+      - name: Upload packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSION" vanish_${{ matrix.arch }}.deb --clobber
+          gh release upload "$VERSION" vanish_${{ matrix.arch }}.rpm --clobber
+
+  # Update Homebrew tap
+  homebrew:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all Linux & macOS binaries
+        uses: actions/download-artifact@v4
+
+      - name: Calculate SHAs and update formula
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CLEAN_VERSION="${VERSION#v}"
+
+          # Download macOS binaries from release (not built as artifacts on Linux runners)
+          gh release download "$VERSION" -p "vanish-macos-*" -R alfredgpennyworth/vanish-link
+
+          SHA_LINUX_X64=$(sha256sum vanish-linux-x64/vanish-linux-x64 | cut -d' ' -f1)
+          SHA_LINUX_ARM64=$(sha256sum vanish-linux-arm64/vanish-linux-arm64 | cut -d' ' -f1)
+          SHA_MACOS_ARM64=$(sha256sum vanish-macos-arm64 | cut -d' ' -f1)
+          SHA_MACOS_X64=$(sha256sum vanish-macos-x64 | cut -d' ' -f1)
+
+          echo "linux-x64:    $SHA_LINUX_X64"
+          echo "linux-arm64:  $SHA_LINUX_ARM64"
+          echo "macos-arm64:  $SHA_MACOS_ARM64"
+          echo "macos-x64:    $SHA_MACOS_X64"
+
+          # Clone and update tap
+          git clone https://x-access-token:${GH_TOKEN}@github.com/alfredgpennyworth/homebrew-tap.git
+          cd homebrew-tap
+
+          cat > Formula/vanish.rb << RUBY
+          class Vanish < Formula
+            desc "Zero-knowledge self-destructing links. E2E encrypted with AES-256-GCM."
+            homepage "https://vanish.link"
+            license "MIT"
+            version "${CLEAN_VERSION}"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/alfredgpennyworth/vanish-link/releases/download/v${CLEAN_VERSION}/vanish-macos-arm64"
+                sha256 "${SHA_MACOS_ARM64}"
+
+                def install
+                  bin.install "vanish-macos-arm64" => "vanish"
+                end
+              else
+                url "https://github.com/alfredgpennyworth/vanish-link/releases/download/v${CLEAN_VERSION}/vanish-macos-x64"
+                sha256 "${SHA_MACOS_X64}"
+
+                def install
+                  bin.install "vanish-macos-x64" => "vanish"
+                end
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/alfredgpennyworth/vanish-link/releases/download/v${CLEAN_VERSION}/vanish-linux-arm64"
+                sha256 "${SHA_LINUX_ARM64}"
+
+                def install
+                  bin.install "vanish-linux-arm64" => "vanish"
+                end
+              else
+                url "https://github.com/alfredgpennyworth/vanish-link/releases/download/v${CLEAN_VERSION}/vanish-linux-x64"
+                sha256 "${SHA_LINUX_X64}"
+
+                def install
+                  bin.install "vanish-linux-x64" => "vanish"
+                end
+              end
+            end
+
+            test do
+              assert_match "vanish", shell_output("#{bin}/vanish --help")
+            end
+          end
+          RUBY
+
+          git config user.name "Alfred"
+          git config user.email "alfredgpennyworth@gmail.com"
+          git add -A
+          git commit -m "Update vanish to ${CLEAN_VERSION}"
+          git push
+
+  # Publish to npm
   npm-publish:
     runs-on: ubuntu-latest
     steps:
