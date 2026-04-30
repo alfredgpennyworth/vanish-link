@@ -1,5 +1,5 @@
 {
-  "name": "vanish-cli",
+  "name": "@agentictools/vanish",
   "version": "0.1.1",
   "description": "Zero-knowledge self-destructing links. E2E encrypted with AES-256-GCM.",
   "bin": {
